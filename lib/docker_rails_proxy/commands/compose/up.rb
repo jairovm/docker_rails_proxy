@@ -62,7 +62,7 @@ module DockerRailsProxy
       def rsync_app
         loop do
           break if sync(source: APP_PATH)
-          puts "waiting for rsync-volume service on #{rsync_host}"
+          puts "waiting for rsync-volume service on #{_rsync_host}"
           sleep 2
         end
       end

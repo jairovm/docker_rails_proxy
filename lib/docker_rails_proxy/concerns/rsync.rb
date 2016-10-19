@@ -69,6 +69,8 @@ module DockerRailsProxy
           --exclude 'tmp/cache' \
           --exclude 'tmp/letter_opener' \
           --exclude 'tmp/pids' \
+          --exclude 'tmp/sockets' \
+          --exclude 'tmp/sessions' \
           --exclude 'log' \
           --exclude '.git*' \
           --force \
