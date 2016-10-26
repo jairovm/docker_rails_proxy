@@ -4,9 +4,10 @@ class String
   end
 
   def classify
-    gsub(/\W/, ''.freeze)
-      .gsub('_'.freeze, ''.freeze)
-      .sub(/^[a-z\d]*/, &:capitalize)
+    gsub('-'.freeze, '_'.freeze)
+      .gsub(/\W/, ''.freeze)
+      .split('_'.freeze)
+      .map{|s| s.sub(/^[a-z\d]*/, &:capitalize) }.join
   end
 
   def constantize
