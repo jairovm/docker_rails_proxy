@@ -31,6 +31,18 @@ module DockerRailsProxy
         end
       end
 
+      validates do
+        unless system <<-EOS
+          aws cloudformation validate-template \
+            --template-body 'file://#{options[:ymlfile]}' \
+            --profile '#{options[:profile]}' \
+            > /dev/null
+        EOS
+
+          'Invalid template. See above errors'
+        end
+      end
+
       before_process { self.data = YAML::load_file(options[:ymlfile]) }
 
       def process
