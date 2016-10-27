@@ -41,9 +41,14 @@ module DockerRailsProxy
     private
 
       def set_parameters
+        parameters.merge! options[:parameters]
+
         (data['Parameters'] || {}).each do |key, attrs|
+          next if parameters[key].present?
+
           puts '-' * 100
-          while parameters[key].to_s.empty? do
+
+          while parameters[key].blank? do
             value = nil
 
             case attrs['Type']
@@ -53,7 +58,7 @@ module DockerRailsProxy
                   | jq '.KeyPairs[] | .KeyName' | xargs
               ).strip.split(' ')
 
-              print_options(key_pairs, "Choose a key pair number and press [ENTER]")
+              print_options(key_pairs, "Choose an option for #{key} and press [ENTER]")
               parameters[key] = get_option(key_pairs, value)
 
             else
@@ -66,7 +71,7 @@ module DockerRailsProxy
                 flush_stdin
 
                 parameters[key] = $stdin.gets.chomp || value
-                parameters[key] = value if parameters[key].empty?
+                parameters[key] = value if parameters[key].blank?
               else
                 print_options(allowed_values, "Choose an option for #{key} and press [ENTER] (Default: #{value})")
                 parameters[key] = get_option(allowed_values, value)
@@ -86,7 +91,7 @@ module DockerRailsProxy
         print ": "
         option = $stdin.gets.chomp
 
-        return default if option.empty?
+        return default if option.blank?
         option =~ /^\d+$/ ? values[option.to_i] : nil
       end
 
@@ -97,7 +102,8 @@ module DockerRailsProxy
       end
 
       def set_defaults
-        options[:profile] ||= APP_NAME
+        options[:profile]    ||= APP_NAME
+        options[:parameters] ||= {}
       end
 
       def parse_options!
@@ -115,6 +121,10 @@ module DockerRailsProxy
 
           opts.on('--ymlfile YMLFILE', 'Stack YML file') do |ymlfile|
             options[:ymlfile] = build_path(ymlfile)
+          end
+
+          opts.on('--parameters A=val,B=val...', Array, 'CF parameters') do |o|
+            options[:parameters] = Hash[o.map { |s| s.split('=', 2) }]
           end
 
           opts.on('-h', '--help', 'Display this screen') do
