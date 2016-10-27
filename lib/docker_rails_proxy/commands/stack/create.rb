@@ -42,9 +42,10 @@ module DockerRailsProxy
 
       def set_parameters
         (data['Parameters'] || {}).each do |key, attrs|
-          value = nil
-
+          puts '-' * 100
           while parameters[key].to_s.empty? do
+            value = nil
+
             case attrs['Type']
             when 'AWS::EC2::KeyPair::KeyName'
               key_pairs ||= %x(
@@ -52,7 +53,7 @@ module DockerRailsProxy
                   | jq '.KeyPairs[] | .KeyName' | xargs
               ).strip.split(' ')
 
-              print_options(key_pairs, "Choose a key pair number and press [ENTER] (Default: #{value})")
+              print_options(key_pairs, "Choose a key pair number and press [ENTER]")
               parameters[key] = get_option(key_pairs, value)
 
             else
