@@ -35,6 +35,7 @@ module DockerRailsProxy
 
       def process
         set_parameters
+        puts parameters.inspect
       end
 
     private
@@ -44,8 +45,6 @@ module DockerRailsProxy
           value = nil
 
           while parameters[key].to_s.empty? do
-            puts '=' * 100
-            puts parameters.inspect
             case attrs['Type']
             when 'AWS::EC2::KeyPair::KeyName'
               key_pairs ||= %x(
@@ -53,8 +52,24 @@ module DockerRailsProxy
                   | jq '.KeyPairs[] | .KeyName' | xargs
               ).strip.split(' ')
 
-              print_options key_pairs, "Choose a key pair number and press [ENTER] (Default: #{value})"
+              print_options(key_pairs, "Choose a key pair number and press [ENTER] (Default: #{value})")
               parameters[key] = get_option(key_pairs, value)
+
+            else
+              value ||= attrs['Default']
+
+              allowed_values = Array(attrs['AllowedValues'])
+
+              if allowed_values.empty?
+                print "Enter #{key} value and press [ENTER] (Default: #{value}): "
+                flush_stdin
+
+                parameters[key] = $stdin.gets.chomp || value
+                parameters[key] = value if parameters[key].empty?
+              else
+                print_options(allowed_values, "Choose an option for #{key} and press [ENTER] (Default: #{value})")
+                parameters[key] = get_option(allowed_values, value)
+              end
             end
           end
         end
@@ -69,7 +84,9 @@ module DockerRailsProxy
         flush_stdin
         print ": "
         option = $stdin.gets.chomp
-        option =~ /^\d+$/ ? values[option.to_i] : default
+
+        return default if option.empty?
+        option =~ /^\d+$/ ? values[option.to_i] : nil
       end
 
       def flush_stdin
