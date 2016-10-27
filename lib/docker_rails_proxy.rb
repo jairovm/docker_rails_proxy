@@ -63,6 +63,26 @@ module DockerRailsProxy
     def build_path(*args, &block)
       self.class.build_path(*args, &block)
     end
+
+    def print_options(values, message)
+      puts message
+      values.each_with_index { |v, i| puts "#{i}) #{v}" }
+    end
+
+    def get_option(values, default = nil)
+      flush_stdin
+      print ": "
+      option = $stdin.gets.chomp
+
+      return default if option.blank?
+      option =~ /^\d+$/ ? values[option.to_i] : nil
+    end
+
+    def flush_stdin
+      loop do
+        Timeout::timeout(0.1) { $stdin.gets.chomp } rescue break
+      end
+    end
   end
 
   class AwsCli < Base
