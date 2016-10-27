@@ -19,4 +19,12 @@ class String
   def underscore
     downcase.gsub('::'.freeze, '/'.freeze).gsub('-'.freeze, '_'.freeze)
   end
+
+  def present?
+    !empty?
+  end
+
+  def blank?
+    nil? or empty?
+  end
 end

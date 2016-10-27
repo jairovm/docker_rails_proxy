@@ -1,5 +1,6 @@
-require 'docker_rails_proxy/extends/colorization'
-require 'docker_rails_proxy/extends/string_support'
+Dir[File.expand_path('../docker_rails_proxy/extends/*.rb', __FILE__)].map do |f|
+  require f
+end
 
 module DockerRailsProxy
   COMMANDS = Dir[File.expand_path('../docker_rails_proxy/commands/*.rb', __FILE__)].map do |f|
