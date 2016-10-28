@@ -1,3 +1,4 @@
+require 'json'
 require 'optparse'
 require 'timeout'
 require 'yaml'
@@ -16,8 +17,9 @@ module DockerRailsProxy
       after_initialize { self.options, self.parameters = {}, {} }
       after_initialize :parse_options!, :set_defaults
 
-      validates { '--profile is required.' if options[:profile].nil? }
-      validates { '--ymlfile is required.' if options[:ymlfile].nil? }
+      validates { '--stack-name is required.' if options[:stack_name].blank? }
+      validates { '--profile is required.'    if options[:profile].blank?    }
+      validates { '--ymlfile is required.'    if options[:ymlfile].blank?    }
 
       validates do
         unless File.exist? options[:ymlfile]
@@ -44,18 +46,25 @@ module DockerRailsProxy
       end
 
       before_process { self.data = YAML::load_file(options[:ymlfile]) }
+      before_process { set_parameters }
 
       def process
-        set_parameters
-        puts parameters.inspect
+        system <<-EOS
+          aws cloudformation create-stack \
+            --stack-name '#{options[:stack_name]}' \
+            --parameters '#{parameters.to_json}' \
+            --template-body 'file://#{options[:ymlfile]}' \
+            --capabilities 'CAPABILITY_IAM' \
+            --profile '#{options[:profile]}'
+        EOS
       end
 
     private
 
       def set_parameters
-        parameters.merge! options[:parameters]
-
         (data['Parameters'] || {}).each do |key, attrs|
+          parameters[key] = options[:parameters][key]
+
           next if parameters[key].present?
 
           puts '-' * 100
@@ -91,6 +100,15 @@ module DockerRailsProxy
             end
           end
         end
+
+        self.parameters = parameters.inject([]) do |params, (key, value)|
+          params << {
+            'ParameterKey': key,
+            'ParameterValue': value,
+            'UsePreviousValue': false
+          }
+          params
+        end
       end
 
       def set_defaults
@@ -110,6 +128,10 @@ module DockerRailsProxy
             '--profile [PROFILE]',
             "Aws profile (Default: #{APP_NAME})"
           ) { |profile| options[:profile] = profile }
+
+          opts.on('--stack-name STACK_NAME', 'Stack Name') do |stack_name|
+            options[:stack_name] = stack_name
+          end
 
           opts.on('--ymlfile YMLFILE', 'Stack YML file') do |ymlfile|
             options[:ymlfile] = build_path(ymlfile)
