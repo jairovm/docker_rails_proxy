@@ -10,10 +10,6 @@ module DockerRailsProxy
 
       attr_accessor :options, :data, :parameters
 
-      before_initialize do
-        'jq is required, `brew install jq`' unless system 'type jq &> /dev/null'
-      end
-
       after_initialize { self.options, self.parameters = {}, {} }
       after_initialize :parse_options!, :set_defaults
 
