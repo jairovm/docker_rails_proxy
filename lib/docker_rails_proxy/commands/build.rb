@@ -5,7 +5,7 @@ module DockerRailsProxy
     attr_accessor :options
 
     after_initialize { self.options = {} }
-    after_initialize :parse_options!
+    after_initialize :parse_options!, :set_defaults
 
     validates do
       if options[:dockerfile].nil?
@@ -16,6 +16,12 @@ module DockerRailsProxy
     end
 
     validates { '--tag is required' if options[:tag].nil? }
+
+    validates do
+      unless File.directory?(options[:context])
+        "#{options[:context]} folder does not exist."
+      end
+    end
 
     validates do
       options[:build_args] ||= {}
@@ -37,7 +43,7 @@ module DockerRailsProxy
           -f '#{options[:dockerfile]}' \
           -t '#{options[:tag]}' \
           #{build_args} \
-          '#{APP_PATH}'
+          '#{options[:context]}'
       EOS
     end
 
@@ -47,6 +53,10 @@ module DockerRailsProxy
       options[:build_args].map do |k, v|
         "--build-arg #{k.upcase}='#{v.strip}'"
       end.join(' ')
+    end
+
+    def set_defaults
+      options[:context] ||= File.dirname(options[:dockerfile])
     end
 
     def parse_options!
@@ -59,6 +69,10 @@ module DockerRailsProxy
 
         opts.on('--dockerfile DOCKERFILE', 'Dockerfile') do |dockerfile|
           options[:dockerfile] = dockerfile
+        end
+
+        opts.on('--context [CONTEXT]', 'Docker build context') do |context|
+          options[:context] = context
         end
 
         opts.on('--tag TAG', 'Docker Image Tag') { |tag| options[:tag] = tag }
