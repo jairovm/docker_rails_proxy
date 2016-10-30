@@ -48,7 +48,7 @@ module DockerRailsProxy
         system <<-EOS
           aws cloudformation create-stack \
             --stack-name '#{options[:stack_name]}' \
-            --parameters '#{parameters.to_json}' \
+            --parameters #{parameters.join(' ')} \
             --template-body 'file://#{options[:ymlfile]}' \
             --capabilities 'CAPABILITY_IAM' \
             --profile '#{options[:profile]}'
@@ -97,13 +97,8 @@ module DockerRailsProxy
           end
         end
 
-        self.parameters = parameters.inject([]) do |params, (key, value)|
-          params << {
-            'ParameterKey': key,
-            'ParameterValue': value,
-            'UsePreviousValue': false
-          }
-          params
+        self.parameters = parameters.map do |key, value|
+          "ParameterKey=\"#{key}\",ParameterValue=\"#{value}\",UsePreviousValue=false"
         end
       end
 
