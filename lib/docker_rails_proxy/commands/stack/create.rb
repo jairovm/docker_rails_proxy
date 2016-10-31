@@ -8,9 +8,10 @@ module DockerRailsProxy
     class Create < self
       YML_EXTENSIONS = %w(.yml .yaml).freeze
 
-      attr_accessor :options, :data, :parameters
+      attr_accessor :options, :data, :parameters, :outputs
 
-      after_initialize { self.options, self.parameters = {}, {} }
+      after_initialize { self.options = {} }
+      after_initialize { self.parameters, self.outputs = {}, {} }
       after_initialize :parse_options!, :set_defaults
 
       validates { '--stack-name is required.' if options[:stack_name].blank? }
@@ -42,6 +43,7 @@ module DockerRailsProxy
       end
 
       before_process { self.data = YAML::load_file(options[:ymlfile]) }
+      before_process { set_outputs unless options[:import_outputs_from].empty? }
       before_process { set_parameters }
 
       def process
@@ -57,9 +59,36 @@ module DockerRailsProxy
 
     private
 
+      def set_outputs
+        jq_command = <<-EOS
+            .Stacks[]
+            | select(
+              .StackName as $name
+              | "#{options[:import_outputs_from].join(' ')}"
+              | split(" ")
+              | map(. == $name)
+              | index(true) >= 0
+            )
+            | .Outputs[]
+            | [ .OutputKey, .OutputValue ]
+            | join("=")
+        EOS
+
+        outputs_data = %x(
+          aws cloudformation describe-stacks --profile '#{options[:profile]}' \
+            | jq '#{jq_command}' | xargs
+        ).strip.split(' ')
+
+        outputs_data.each do |string|
+          key, value = string.split('=')
+          self.outputs[key] = value
+        end
+      end
+
       def set_parameters
         (data['Parameters'] || {}).each do |key, attrs|
           parameters[key] = options[:parameters][key]
+          parameters[key] ||= outputs[key]
 
           next if parameters[key].present?
 
@@ -103,8 +132,9 @@ module DockerRailsProxy
       end
 
       def set_defaults
-        options[:profile]    ||= APP_NAME
-        options[:parameters] ||= {}
+        options[:profile]             ||= APP_NAME
+        options[:parameters]          ||= {}
+        options[:import_outputs_from] ||= []
       end
 
       def parse_options!
@@ -130,6 +160,10 @@ module DockerRailsProxy
 
           opts.on('--parameters A=val,B=val...', Array, 'CF parameters') do |o|
             options[:parameters] = Hash[o.map { |s| s.split('=', 2) }]
+          end
+
+          opts.on('--import-outputs-from a,b...', Array, 'CF stack names') do |list|
+            options[:import_outputs_from] = list
           end
 
           opts.on('-h', '--help', 'Display this screen') do
