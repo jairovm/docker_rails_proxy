@@ -25,7 +25,11 @@ module DockerRailsProxy
       end
 
       validates do
-        unless YML_EXTENSIONS.include? File.extname(options[:ymlfile])
+        if YML_EXTENSIONS.include? File.extname(options[:ymlfile])
+          self.data          = YAML::load_file(options[:ymlfile])
+          options[:jsonfile] = options[:ymlfile].sub(/\..+/, '.json')
+          File.write(options[:jsonfile], data.to_json)
+        else
           "#{options[:ymlfile]} is not a yml file"
         end
       end
@@ -33,7 +37,7 @@ module DockerRailsProxy
       validates do
         unless system <<-EOS
           aws cloudformation validate-template \
-            --template-body 'file://#{options[:ymlfile]}' \
+            --template-body 'file://#{options[:jsonfile]}' \
             --profile '#{options[:profile]}' \
             > /dev/null
         EOS
@@ -42,16 +46,17 @@ module DockerRailsProxy
         end
       end
 
-      before_process { self.data = YAML::load_file(options[:ymlfile]) }
       before_process { set_outputs unless options[:import_outputs_from].empty? }
       before_process { set_parameters }
+
+      after_process { File.delete(options[:jsonfile]) if File.exist?(options[:jsonfile]) }
 
       def process
         system <<-EOS
           aws cloudformation create-stack \
             --stack-name '#{options[:stack_name]}' \
             --parameters #{parameters.join(' ')} \
-            --template-body 'file://#{options[:ymlfile]}' \
+            --template-body 'file://#{options[:jsonfile]}' \
             --capabilities 'CAPABILITY_IAM' \
             --profile '#{options[:profile]}'
         EOS
@@ -94,7 +99,7 @@ module DockerRailsProxy
 
           puts '-' * 100
 
-          while parameters[key].blank? do
+          while parameters[key].to_s.blank? do
             value = nil
 
             case attrs['Type']
