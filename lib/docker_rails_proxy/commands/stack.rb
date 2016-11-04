@@ -58,10 +58,6 @@ module DockerRailsProxy
           puts "#{stack_name} stack stabilized: #{status}"
           break
 
-        when ''
-          puts "#{stack_name} stack does not exit"
-          break
-
         else
           $stderr.puts %{
             There is a problem with the #{stack_name} stack: #{status}
@@ -70,7 +66,7 @@ module DockerRailsProxy
         end
 
         sleep 10
-      end
+      end if stack_exist?(stack_name)
     end
 
     def stack_status(stack_name)

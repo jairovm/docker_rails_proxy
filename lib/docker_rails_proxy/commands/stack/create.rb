@@ -32,6 +32,15 @@ module DockerRailsProxy
       end
 
       validates do
+        if options[:wait_for_stack]
+          wait_for_stack(options[:stack_name])
+          '' # Just exit, wait_for_stack will print messages
+        else
+          "Stack: #{options[:stack_name]} already exists"
+        end if stack_exist?(options[:stack_name])
+      end
+
+      validates do
         unless system <<-EOS
           aws cloudformation validate-template \
             --template-body 'file://#{options[:jsonfile]}' \
@@ -91,6 +100,9 @@ module DockerRailsProxy
       end
 
       def set_parameters
+        puts '-' * 100
+        puts "- #{options[:stack_name]} stack parameters"
+
         (data['Parameters'] || {}).each do |key, attrs|
           parameters[key] = options[:parameters][key]
           parameters[key] ||= outputs[key]
