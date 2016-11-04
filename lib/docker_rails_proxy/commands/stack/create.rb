@@ -1,5 +1,4 @@
 require 'json'
-require 'optparse'
 require 'timeout'
 require 'yaml'
 
@@ -8,14 +7,12 @@ module DockerRailsProxy
     class Create < self
       YML_EXTENSIONS = %w(.yml .yaml).freeze
 
-      attr_accessor :options, :data, :parameters, :outputs
+      attr_accessor :data, :parameters, :outputs
 
-      after_initialize { self.options = {} }
       after_initialize { self.parameters, self.outputs = {}, {} }
-      after_initialize :parse_options!, :set_defaults
+      after_initialize :set_defaults
 
       validates { '--stack-name is required.' if options[:stack_name].blank? }
-      validates { '--profile is required.'    if options[:profile].blank?    }
       validates { '--ymlfile is required.'    if options[:ymlfile].blank?    }
 
       validates do
@@ -42,7 +39,9 @@ module DockerRailsProxy
             > /dev/null
         EOS
 
-          'Invalid template. See above errors'
+          %{
+            Invalid template. See above errors
+          }
         end
       end
 
@@ -137,24 +136,12 @@ module DockerRailsProxy
       end
 
       def set_defaults
-        options[:profile]             ||= APP_NAME
         options[:parameters]          ||= {}
         options[:import_outputs_from] ||= []
       end
 
-      def parse_options!
-        opt_parser.parse!(arguments)
-      end
-
       def opt_parser
-        @opt_parser ||= OptionParser.new do |opts|
-          opts.banner = "Usage: bin/#{APP_NAME} create-stack [options]"
-
-          opts.on(
-            '--profile [PROFILE]',
-            "Aws profile (Default: #{APP_NAME})"
-          ) { |profile| options[:profile] = profile }
-
+        super do |opts|
           opts.on('--stack-name STACK_NAME', 'Stack Name') do |stack_name|
             options[:stack_name] = stack_name
           end
@@ -169,11 +156,6 @@ module DockerRailsProxy
 
           opts.on('--import-outputs-from a,b...', Array, 'CF stack names') do |list|
             options[:import_outputs_from] = list
-          end
-
-          opts.on('-h', '--help', 'Display this screen') do
-            puts opts
-            exit
           end
         end
       end

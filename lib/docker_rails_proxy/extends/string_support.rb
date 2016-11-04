@@ -1,6 +1,6 @@
 class String
-  def parameterize(separator = '-'.freeze)
-    downcase.gsub(/\W/, separator).gsub('_'.freeze, separator)
+  def blank?
+    nil? or empty?
   end
 
   def classify
@@ -16,15 +16,19 @@ class String
     end
   end
 
-  def underscore
-    downcase.gsub('::'.freeze, '/'.freeze).gsub('-'.freeze, '_'.freeze)
+  def demodulize
+    split('::').last
+  end
+
+  def parameterize(separator = '-'.freeze)
+    downcase.gsub(/\W/, separator).gsub('_'.freeze, separator)
   end
 
   def present?
     !empty?
   end
 
-  def blank?
-    nil? or empty?
+  def underscore
+    downcase.gsub('::'.freeze, '/'.freeze).gsub('-'.freeze, '_'.freeze)
   end
 end
