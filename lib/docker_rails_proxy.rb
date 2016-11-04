@@ -34,6 +34,16 @@ module DockerRailsProxy
         File.join(APP_PATH, block_given? ? yield : path)
       end
 
+      def command
+        name.sub('DockerRailsProxy::', ''.freeze).parameterize.sub('--', ' '.freeze)
+      end
+
+      def execute(options)
+        system <<-EOS
+          #{build_path("bin/#{APP_NAME}")} #{command} #{options}
+        EOS
+      end
+
       def call(options)
         klass = _run_build_callbacks params: options
 
