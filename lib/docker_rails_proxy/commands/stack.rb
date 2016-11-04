@@ -27,7 +27,7 @@ module DockerRailsProxy
         klass_name = %W[
           DockerRailsProxy
           Stack
-          Deploy#{params[:arguments].first.classify}
+          #{params[:arguments].first.classify}Deploy
         ].join('::')
 
         begin
