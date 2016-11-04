@@ -49,6 +49,7 @@ module DockerRailsProxy
       before_process { set_parameters }
 
       after_process { File.delete(options[:jsonfile]) if File.exist?(options[:jsonfile]) }
+      after_process { wait_for_stack(options[:stack_name]) if options[:wait_for_stack] }
 
       def process
         system <<-EOS
@@ -156,6 +157,10 @@ module DockerRailsProxy
 
           opts.on('--import-outputs-from a,b...', Array, 'CF stack names') do |list|
             options[:import_outputs_from] = list
+          end
+
+          opts.on('--wait-for-stack', 'Wait for the stack to be created') do |v|
+            options[:wait_for_stack] = v
           end
         end
       end
