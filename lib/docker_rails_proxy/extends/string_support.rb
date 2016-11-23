@@ -24,6 +24,7 @@ class String
     split(/(?=[A-Z])/).join(separator)
       .downcase.gsub(/\W/, separator)
       .gsub('_'.freeze, separator)
+      .gsub('---'.freeze, '--'.freeze)
   end
 
   def present?
