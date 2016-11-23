@@ -21,7 +21,9 @@ class String
   end
 
   def parameterize(separator = '-'.freeze)
-    downcase.gsub(/\W/, separator).gsub('_'.freeze, separator)
+    split(/(?=[A-Z])/).join(separator)
+      .downcase.gsub(/\W/, separator)
+      .gsub('_'.freeze, separator)
   end
 
   def present?
