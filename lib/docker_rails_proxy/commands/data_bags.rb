@@ -2,65 +2,69 @@ require 'optparse'
 
 module DockerRailsProxy
   class DataBags < AwsCli
-    attr_accessor :options
+    autoload :Pull, 'docker_rails_proxy/commands/data_bags/pull'
+    autoload :Push, 'docker_rails_proxy/commands/data_bags/push'
+
+    EXCLUDE = %w[.summary *.swp *.DS_Store].freeze
+
+    attr_accessor :options, :local_summary
 
     after_initialize { self.options = {} }
     after_initialize :parse_options!, :set_defaults
 
-    before_process :set_folder_and_bucket
-
     validates { '--profile is required.' if options[:profile].nil? }
     validates { '--bucket is required.'  if options[:bucket].nil?  }
 
-    def process
-      case arguments.first
-      when 'pull' then pull
-      when 'push' then push
+    validates do
+      unless system <<-EOS.strip
+        aws s3 ls --profile '#{options[:profile]}' | grep '#{options[:bucket]}'
+      EOS
+
+        "#{options[:bucket]} bucket does not exit."
+      end
+    end
+
+    after_process do
+      if File.directory?(options[:folder])
+        File.write(options[:summary_path], bucket_summary.strip)
+      end
+    end
+
+    builds -> (params:) do
+      case params[:arguments].shift
+      when 'pull' then Pull
+      when 'push' then Push
       else
-        opt_parser.parse %w(-h)
+        puts "Usage: bin/#{APP_NAME} #{command} <pull|push> [options]"
+        exit
       end
     end
 
   private
 
-    def pull
-      if system <<-EOS.strip
-        aws s3 sync '#{options[:bucket]}' '#{options[:folder]}' \
-          --delete \
-          --exact-timestamps \
-          --profile '#{options[:profile]}'
-      EOS
+    def bucket_summary
+      summary = %x(
+        aws s3 ls '#{options[:bucket]}' --summarize --recursive \
+          --profile '#{options[:profile]}' | grep -v '^$' | sort -n
+      ).strip.split("\n")
 
-        puts "Data bags pulled from #{options[:bucket]} to #{options[:folder]}"
-      end
+      # 0 => Total Size
+      # 1 => Total Objects
+      # last => last updated file
+      (summary[ 0..1 ] << summary.last).map{|s| s.gsub(/\D/, ''.freeze) }.join('-')
     end
 
-    def push
-      puts "#{options[:bucket]} will be synced with #{options[:folder]}, are you sure?: [yes]"
-      confirm = $stdin.gets.chomp
-
-      exit unless confirm == 'yes'
-
-      if system <<-EOS
-        aws s3 sync '#{options[:folder]}' '#{options[:bucket]}' \
-          --delete \
-          --exact-timestamps \
-          --profile '#{options[:profile]}' \
-          --sse aws:kms
-      EOS
-
-        puts "Data bags pushed from #{options[:folder]} to #{options[:bucket]}"
-      end
+    def exclude_args
+      EXCLUDE.map{|s| "--exclude '#{s}'" }.join(' ')
     end
 
     def set_defaults
       options[:profile] ||= APP_NAME
       options[:bucket]  ||= "#{APP_NAME}-data-bags"
-    end
 
-    def set_folder_and_bucket
-      options[:folder] = build_path('.data-bags')
-      options[:bucket] = "s3://#{options[:bucket]}"
+      options[:bucket_path]  = "s3://#{options[:bucket]}"
+      options[:folder]       = build_path(".data-bags/#{options[:bucket]}")
+      options[:summary_path] = "#{options[:folder]}/.summary"
     end
 
     def parse_options!

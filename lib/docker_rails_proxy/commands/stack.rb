@@ -37,7 +37,7 @@ module DockerRailsProxy
           exit 1
         end
       else
-        puts "Usage: bin/#{APP_NAME} stack <create|destroy|deploy> [options]"
+        puts "Usage: bin/#{APP_NAME} #{command} <create|destroy|deploy> [options]"
         exit
       end
     end
