@@ -68,6 +68,7 @@ module DockerRailsProxy
       end
 
       def fswatch_start
+        puts 'fswatch has been started'
         PTY.spawn(FSWATCH_CMD) do |stdout, stdin, pid|
           begin
             stdout.each { |path| sync_or_kill(path: path, pid: pid) }
@@ -75,8 +76,13 @@ module DockerRailsProxy
             $stderr.puts EIO_ERROR
           end
         end
+
       rescue PTY::ChildExited
         $stderr.puts '"The fswatch process exited!'
+
+      # Captures Ctrl-C
+      rescue Exception
+        puts 'fswatch has been stopped'
       end
 
       def sync_or_kill(path:, pid:)
