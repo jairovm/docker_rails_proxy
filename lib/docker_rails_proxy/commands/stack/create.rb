@@ -24,7 +24,7 @@ module DockerRailsProxy
       validates do
         if YML_EXTENSIONS.include? File.extname(options[:ymlfile])
           self.data          = YAML::load_file(options[:ymlfile])
-          options[:jsonfile] = options[:ymlfile].sub(/\..+/, '.json')
+          options[:jsonfile] = options[:ymlfile].sub(/\/(\w+)\..+$/, '/.\1.json')
           File.write(options[:jsonfile], data.to_json)
         else
           "#{options[:ymlfile]} is not a yml file"
